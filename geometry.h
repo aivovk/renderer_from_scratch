@@ -26,6 +26,12 @@ class Vector
   
   template <typename... Ts>
   inline Vector<T,n>(Ts... data_list):data{data_list...} {}
+
+  template <typename U, std::size_t m>
+  inline Vector<T,n>(const Vector<U,m>& rhs){
+    for(std::size_t i = 0 ; i < std::min(n, m) ; i++)
+      data[i] = rhs.data[i];
+  }
   
   inline T& operator[](std::size_t i) {
     return data[i];
@@ -53,10 +59,12 @@ class Vector
   }
   inline T magnitude() const { return sqrt((*this) * (*this)); }
   inline T magnitudeSquared() const {return (*this) * (*this); } // or this * this;
-  inline void normalize() {
+  inline Vector<T,n>& normalize() {
     for(std::size_t i = 0 ; i < n ; i++)
       data[i] /= magnitude();
+    return *this;
   }
+  
   bool operator<(const Vector<T,n>& other) const{
     if(this->data[1] != other.data[1])
       return this->data[1] < other.data[1];
@@ -72,10 +80,10 @@ std::ostream & operator<<(std::ostream & out, const Vector<T, n> & r);
 
 /// individually multiply x, y, and z of two vectors together
 /// (not dot product)
-template <class T, std::size_t n>
-inline Vector<T,n> mult(const Vector<T,n> & r1, const Vector<T,n> & r2) {
-  Vector<T,n> a;
-  for( std::size_t i = 0 ; i < n ; i++)
+template <class T, std::size_t n, std::size_t m>
+inline Vector<T,n> mult(const Vector<T,n> & r1, const Vector<T,m> & r2) {
+  Vector<T,n> a = r1;
+  for( std::size_t i = 0 ; i < std::min(n, m) ; i++)
     a.data[i] = r1.data[i] * r2.data[i];
   return a;
 }

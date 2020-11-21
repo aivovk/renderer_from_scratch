@@ -38,7 +38,7 @@ int main(){
 
   bool quit = false;
 
-  Model m("model.xyz");
+  Scene s("s1.scene");
   
   Vec3f camera = {0, 1, -5};
   Vec3f up = {0,1,0};
@@ -48,7 +48,7 @@ int main(){
 
   //Matrix4f viewport_and_projection = viewport(width, height) * projection();
   Graphics g(renderer, camera_transform);
-  g.addModel(m);
+  g.addScene(s);
  
   float mouseSpeed = 0.005;
   while(!quit){

@@ -7,7 +7,7 @@
 #include <functional>
 
 #include "geometry.h"
-#include "model.h"
+#include "scene.h"
 
 /* Converts a point's x,y coordinates to a triangles barycentric coordinate
  * system (based on x,y only)
@@ -25,7 +25,7 @@ Vec3i getBarycentricUVD(const Point& p, const Vec4f (&ps)[3]);
 /*
  * See getBarycentricUVD for definition of uvd
  */
-bool isPointInTriangle(Vec3i uvd);
+inline bool isPointInTriangle(Vec3i uvd);
 
 //void drawTriangle(const Triangle&, SDL_Renderer* renderer);
 void drawTriangleBoundary(const Triangle& ps, SDL_Renderer* renderer);
@@ -68,7 +68,7 @@ private:
   
 public:
   static constexpr float NEAR_CLIP_DIST = 0.1f;
-  static constexpr float HORIZONTAL_VIEWING_ANGLE_RAD = 2.0/3.0 * M_PI;
+  static constexpr float HORIZONTAL_VIEWING_ANGLE_RAD = 0.5 * M_PI;
   static constexpr float VIEWING_FACTOR = 1.0f / tan(0.5f * HORIZONTAL_VIEWING_ANGLE_RAD);
   
   void clearZBuffer(){
@@ -77,30 +77,10 @@ public:
 
   void convertToScreen(Vec4f& v) const {
     // when x/z = tan(view_angle / 2)
-
-    // when z < 0 our coordinates were getting flipped
-    // but what do we actually want to map to?
-
-    /*
-      i think what's happening now makes sense
-      you can see the triangle switch direction (when it flips crossing xy plane)
-
-      then it starts shrinking, the point was mapped to realistic xy, but the z
-      is negative, so on the interpolation only half ends up being shown
-     */
-    
-    /*if(v[2] < 0){
-      v[0] = width/2 - 1 - width/2 * v[0]/v[2] * VIEWING_FACTOR;
-      v[1] = height/2 - 1 - width/2 * v[1]/v[2] * VIEWING_FACTOR;
-      } else {*/
     v[0] = width/2 - 1 + width/2 * v[0]/v[2] * VIEWING_FACTOR;
     v[1] = height/2 - 1 + width/2 * v[1]/v[2] * VIEWING_FACTOR;
-    //}
-   
-    //v[0]/=v[3];
-    //v[1]/=v[3];
-    //v[3] = 1.0f;
   }
+  
   void convertToScreen(Triangle& t) const {
     for(size_t i = 0 ; i < 3 ; i++)
       convertToScreen(t[i]);
@@ -119,6 +99,11 @@ public:
 
   void addModel(const Model& m){
     models.push_back(std::cref(m));
+  }
+
+  void addScene(const Scene& s){
+    for(const auto& m : s.getModels())
+      addModel(m);
   }
 
   void render(){
@@ -141,9 +126,19 @@ public:
       
 
      */
+    for (size_t i_model = 0 ; i_model < models.size() ; i_model++){
+      const auto& triangles = models[i_model].get().getTriangles();
+      const auto& normals = models[i_model].get().getNormals();
+      for(size_t i_triangle = 0 ; i_triangle < triangles.size() ; i_triangle++){
+	const auto& t = triangles[i_triangle];
 
-    for(auto m : models){
-      for(const auto& t : m.get().getTriangles()){
+	float lightIntensity = 255.0f;
+	SDL_SetRenderDrawColor(renderer,
+			       lightIntensity,
+			       lightIntensity,
+			       lightIntensity,
+			       255);
+	
 	Triangle screen_triangle;
 	int num_visible_vertices = 0;
 	for(size_t i_vertex = 0 ; i_vertex < 3 ; i_vertex++){
@@ -151,8 +146,25 @@ public:
 	  if (screen_triangle[i_vertex][2] > NEAR_CLIP_DIST){
 	    num_visible_vertices++;
 	  }
-	}
+	}	
 	if (num_visible_vertices > 0){
+	  // recalculate the normal (seems faster than transforming?)
+	  auto n = cross(Vec3f{screen_triangle[1] - screen_triangle[0]},
+			 Vec3f{screen_triangle[2] - screen_triangle[1]}).normalize();
+
+	  
+	  // camera and normal point in the same direction if face is invisible
+	  /* 
+	     this is, I think too much, all visible faces that should be drawn
+	     are drawn, as well as some that shouldn't be (i think based on how
+	     far it is from the viewing box edges)
+
+	     do i have to actually transform the normals to the projected
+	     coordinates?
+	   */
+	  if(n * Vec3f{0, 0, 1} > acos(0.5 * HORIZONTAL_VIEWING_ANGLE_RAD))
+	    continue;		 
+	  
 	  if(num_visible_vertices == 1){
 	    /*
 	      0 1 2
@@ -195,8 +207,7 @@ public:
 	    SDL_SetRenderDrawColor(renderer, 155, 155, 155, 255);
 	    convertToScreen(screen_triangle);
 	    drawTriangle(screen_triangle);
-	    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-
+	   
 	  } else if (num_visible_vertices == 2) {
 	    /*
 	      0 1 2
@@ -249,8 +260,7 @@ public:
 	    SDL_SetRenderDrawColor(renderer, 255, 0, 255, 255);
 	    convertToScreen(extra_triangle);
 	    drawTriangle(extra_triangle);
-	    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-	    
+	    	    
 	  } else {
 	    //std::cout<<"3 visible\n";
 	    convertToScreen(screen_triangle);

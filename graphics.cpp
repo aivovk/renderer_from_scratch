@@ -76,11 +76,16 @@ bool isTriangleVisible(const Triangle& t){
  */
 Vec3i getBarycentricUVD(const Point& p, const Triangle& ps){
   // convert to barycentric coordinates
+
+  // (yC - yA) * (x - xA) - (y - yA) * (xC - xA)
   int u = (ps[2][1]-ps[0][1]) * (p[0] - ps[0][0])
     - (p[1] - ps[0][1]) * (ps[2][0] - ps[0][0]);
+
+  // (y - yA) * (xB - xA) - (yB - yA) * (x - xA)
   int v =  (p[1] - ps[0][1]) * (ps[1][0] - ps[0][0])
     - (ps[1][1]-ps[0][1]) * (p[0] - ps[0][0]);
   // when is denom small?
+  // (xB - XA) * (yC - yA) - (xC - xA) * (yB - yA)
   int denom = (ps[1][0] - ps[0][0]) * (ps[2][1] - ps[0][1])
     - (ps[2][0]-ps[0][0]) * (ps[1][1] - ps[0][1]);
 
@@ -94,6 +99,13 @@ Vec3i getBarycentricUVD(const Point& p, const Triangle& ps){
   // coordinates are (1-u-v, u, v)/denom
 }
 
+Vec3i getBarycentricDeltaX(const Triangle& ps){
+  return {ps[2][1], -ps[1][1], 0};
+}
+Vec3i getBarycentricDeltaY(const Triangle& ps){
+  return {-ps[2][0], ps[1][0], 0};
+}
+
 /*
   A point is inside a triangle if:
   0 <= u
@@ -104,9 +116,11 @@ Vec3i getBarycentricUVD(const Point& p, const Triangle& ps){
   
  */
 bool isPointInTriangle(Vec3i uvd){
-  if (uvd[2] < 0)
-    return uvd[0] <= 0 && uvd[1] <= 0 && uvd[0] + uvd[1] >= uvd[2];
-  return uvd[0] >= 0 && uvd[1] >= 0 && uvd[0] + uvd[1] <= uvd[2];
+  if(uvd[2] < 0)
+   return (uvd[0] & uvd[1] & (uvd[2]-uvd[0]-uvd[1])) <= 0;
+    
+  // the sign bit is 1 if negative
+  return (uvd[0] | uvd[1] | (uvd[2]-uvd[0]-uvd[1])) >= 0;
 }
 
 void Graphics::drawTriangle(const Triangle& ps){
@@ -120,30 +134,32 @@ void Graphics::drawTriangle(const Triangle& ps){
     bboxmax[1] = std::min(height-1, std::max(bboxmax[1], (int) ps[i][1]));
   }
 
-  for (int x = bboxmin[0] ; x <= bboxmax[0] ; x++)
+  auto uvd = getBarycentricUVD(Point{bboxmin[0], bboxmin[1]}, ps);
+  auto dx = getBarycentricDeltaX(ps);
+  auto dy = getBarycentricDeltaY(ps);
+  
+  for (int x = bboxmin[0] ; x <= bboxmax[0] ; x++){
+    auto uvd_start_column = uvd;
     for(int y = bboxmin[1] ; y <= bboxmax[1] ; y++){
-      auto uvd = getBarycentricUVD(Point{x,y}, ps);
+      //auto uvd = getBarycentricUVD(Point{x,y}, ps);
       if (isPointInTriangle(uvd)){
-	// find the Z coordinate of the point (don't understand this yet!!! kind
-	// of) we interpolate the location inside the triangle of (x,y) so this
-	// should also give us z, we don't care what the z values are though,
-	// since we are looking along the z direction and don't care about
-	// perspective yet
-
 	/*
-	  doesn't work if z is negative
-	 */
+	  z is now guaranteed to be in front of viewing plane so don't need to do any extra checks
+	*/
 	
 	float z = ps[0][2] * (uvd[2]-uvd[0]-uvd[1]) + ps[1][2] * uvd[0] + ps[2][2] * uvd[1];
 	z /= uvd[2]; // denom
-     
-	// is the screen at z = 0?
-	if (z > NEAR_CLIP_DIST && z < zbuffer[x*height + y]){
+	
+	if (z < zbuffer[x*height + y]){
 	  SDL_RenderDrawPoint(renderer, x, height - 1 - y);
 	  zbuffer[x*height + y] = z;
 	}
       }
+      uvd += dy;
     }
+    uvd = uvd_start_column;
+    uvd += dx;
+  }
 }
 
 void drawTriangleFilled(Triangle& ps, SDL_Renderer* renderer){
