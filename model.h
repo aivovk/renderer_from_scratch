@@ -66,7 +66,17 @@ public:
 	t[i] = mult(t[i], s);
   }
   void rotate(const Vec3f& r){
-    
+    for(auto& t : triangles){
+      for(int i_vertex = 0 ; i_vertex < 3 ; i_vertex++){
+	for(int i = 0 ; i < 3 ; i++){
+	  t[i_vertex][i] = t[i_vertex][i];
+	  t[i_vertex][(i+1)%3] = cos(r[i]) * t[i_vertex][(i+1)%3]
+	    - sin(r[i]) * t[i_vertex][(i+2)%3];
+	  t[i_vertex][(i+2)%3] = sin(r[i]) * t[i_vertex][(i+1)%3]
+	    + cos(r[i]) * t[i_vertex][(i+2)%3];
+	}
+      }
+    }
   }
   void translate(const Vec3f& t){
     for(auto& tri : triangles)
