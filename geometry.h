@@ -199,6 +199,7 @@ typedef Vector<int,2> Point;
 typedef Vector<float,4> Vec4f;
 typedef Vector<float,3> Vec3f;
 typedef Vector<int,3> Vec3i;
+typedef Vector<int,2> Vec2i;
 typedef Vector<unsigned char, 4> Color;
 typedef Matrix<float, 3, 3> Matrix3f;
 typedef Matrix<float, 4, 4> Matrix4f;
@@ -210,6 +211,22 @@ public:
     return data[i];
   }
   inline const Vec4f& operator[](std::size_t i) const{
+    return data[i];
+  }
+};
+
+class PixelTriangle{
+  Vector<int,2> data[3];
+public:
+  PixelTriangle(const Triangle& t){
+    data[0] = t[0];
+    data[1] = t[1];
+    data[2] = t[2];
+  }
+  inline Vector<int,2>& operator[](std::size_t i){
+    return data[i];
+  }
+  inline const Vector<int,2>& operator[](std::size_t i) const{
     return data[i];
   }
 };

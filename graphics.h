@@ -20,7 +20,7 @@
  * (U,V,D) where the real coordinates of the point are: (1-U/D-V/D) * A + U/D * B + V/D * C
  * where A,B,C are the x,y coordinates of the triangle's points
  */
-Vec3i getBarycentricUVD(const Point& p, const Vec4f (&ps)[3]);
+//Vec3i getBarycentricUVD(const Point& p, const Vec4f (&ps)[3]);
 
 /*
  * See getBarycentricUVD for definition of uvd
