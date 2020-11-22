@@ -1,3 +1,14 @@
+/*
+ * A model is a collection of triangles, loaded from a .xyz file
+ * 
+ * Can be rotated, translated, and scaled.
+ *
+ * TODO:
+ * - colours (or textures)
+ * - normals
+ * - material properties
+ *
+ */
 #ifndef MODEL_H
 #define MODEL_H
 #include <string>
@@ -15,7 +26,7 @@ private:
   // TODO
   // bool twoSided = false;
 
-  // TODO: eventually will want to store the rotation/scale axes
+  // TODO: eventually will want to store the rotation/scale axes or the translate amount
   
   std::vector<Color> triangle_colors;
 public:

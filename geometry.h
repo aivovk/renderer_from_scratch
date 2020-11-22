@@ -1,9 +1,13 @@
 /*
  * Generic Vector and Matrix data structures and operations
  *
- * Common Type Definitions
+ * Used for Points, Vertices, Transformations
  *
- * Triangle Class
+ * Triangle Classes
+ *
+ * TODO:
+ * - one triangle template
+ * - specialize the union for 2D vectors: x,y, instead of x,y,z..
  */
 
 #ifndef GEOMETRY_H
@@ -14,21 +18,44 @@
 #include <numeric>
 #include <iostream>
 
+template <class T, std::size_t n> struct Vector;
+template<class T, std::size_t nrows, std::size_t mcols> class Matrix;
+
+#include "geometry.tpp"
+
+typedef Vector<int,2> Point;
+typedef Vector<float,4> Vec4f;
+typedef Vector<float,3> Vec3f;
+typedef Vector<int,3> Vec3i;
+typedef Vector<int,2> Vec2i;
+typedef Vector<unsigned char, 4> Color;
+typedef Matrix<float, 3, 3> Matrix3f;
+typedef Matrix<float, 4, 4> Matrix4f;
+
+struct Triangle;
+struct PixelTriangle;
+
+
+
 /**
  * Template length vector
  */
 template <class T, std::size_t n>
-class Vector
+struct Vector
 {
- public:
-  T data[n];
-  inline Vector<T,n>():data{} {}
+  union{
+    T data[n];
+    struct{T x,y,z;};
+    struct{T u,v,d;};
+  };
+  
+  //inline Vector<T,n>():data{} {}
   
   template <typename... Ts>
   inline Vector<T,n>(Ts... data_list):data{data_list...} {}
 
   template <typename U, std::size_t m>
-  inline Vector<T,n>(const Vector<U,m>& rhs){
+  inline Vector<T,n>(const Vector<U,m>& rhs):data{} {
     for(std::size_t i = 0 ; i < std::min(n, m) ; i++)
       data[i] = rhs.data[i];
   }
@@ -190,23 +217,14 @@ Vector<T, nrows> operator*(const Matrix<T, nrows, mcols>& m,
 template <class T, std::size_t nrows, std::size_t mcols>
 std::ostream & operator<<(std::ostream & out, const Matrix<T, nrows, mcols> & r);
 
+struct Triangle{
+  union{
+    Vec4f data[3];
+    struct{Vec4f A, B, C;} Vertices;
+  };
 
-// can't compile a template separately
-#include "geometry.tpp"
-
-
-typedef Vector<int,2> Point;
-typedef Vector<float,4> Vec4f;
-typedef Vector<float,3> Vec3f;
-typedef Vector<int,3> Vec3i;
-typedef Vector<int,2> Vec2i;
-typedef Vector<unsigned char, 4> Color;
-typedef Matrix<float, 3, 3> Matrix3f;
-typedef Matrix<float, 4, 4> Matrix4f;
-
-class Triangle{
-  Vec4f data[3];
-public:
+  Triangle():data{} {}
+  
   inline Vec4f& operator[](std::size_t i){
     return data[i];
   }
@@ -215,9 +233,14 @@ public:
   }
 };
 
-class PixelTriangle{
-  Vector<int,2> data[3];
-public:
+struct PixelTriangle{
+  union{
+    Vec2i data[3];
+    struct{Vec2i A, B, C;} Vertices;
+  };
+
+  PixelTriangle():data{} {}
+		
   PixelTriangle(const Triangle& t){
     data[0] = t[0];
     data[1] = t[1];

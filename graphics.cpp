@@ -58,23 +58,23 @@ Matrix4f viewport(int width, int height) {
   returns {u*denom, v*denom, denom} (to keep everything in terms of integers)
   the uvd coordinates of the point are (1-u-v, u, v)???
  */
-int getBarycentricDenom(const PixelTriangle& ps){
-  return (ps[1][0] - ps[0][0]) * (ps[2][1] - ps[0][1])
-    - (ps[2][0]-ps[0][0]) * (ps[1][1] - ps[0][1]);
+int getBarycentricDenom(const PixelTriangle& t){
+  return (t[1].x - t[0].x) * (t[2].y  - t[0].y )
+    - (t[2].x-t[0].x) * (t[1].y  - t[0].y );
 }
-Vec3i getBarycentricUVD(const Point& p, const PixelTriangle& ps){
+Vec3i getBarycentricUVD(const Point& p, const PixelTriangle& t){
   // convert to barycentric coordinates
 
   // (yC - yA) * (x - xA) - (y - yA) * (xC - xA)
-  float u = (ps[2][1]-ps[0][1]) * (p[0] - ps[0][0])
-    - (p[1] - ps[0][1]) * (ps[2][0] - ps[0][0]);
+  float u = (t[2].y-t[0].y) * (p.x - t[0].x)
+    - (p.y - t[0].y) * (t[2].x - t[0].x);
 
   // (y - yA) * (xB - xA) - (yB - yA) * (x - xA)
-  float v =  (p[1] - ps[0][1]) * (ps[1][0] - ps[0][0])
-    - (ps[1][1]-ps[0][1]) * (p[0] - ps[0][0]);
+  float v =  (p.y - t[0].y) * (t[1].x - t[0].x)
+    - (t[1].y-t[0].y) * (p.x - t[0].x);
   // when is denom small?
   // (xB - XA) * (yC - yA) - (xC - xA) * (yB - yA)
-  float denom = getBarycentricDenom(ps);
+  float denom = getBarycentricDenom(t);
 
   if (denom < 0){
     u *= -1;
@@ -90,13 +90,13 @@ Vec3i getBarycentricUVD(const Point& p, const PixelTriangle& ps){
 }
 
 // returns (dU/dx, dV/dx, 0) to update uvd per pixel (NOT DIVIDED BY DENOM!)
-Vec3i getBarycentricDeltaX(const PixelTriangle& ps){
-  return {ps[2][1] - ps[0][1], ps[0][1] - ps[1][1], 0};
+Vec3i getBarycentricDeltaX(const PixelTriangle& t){
+  return {t[2].y - t[0].y, t[0].y - t[1].y, 0};
 }
 
 // returns (dU/dy, dV/dy, 0) (NOT DIVIDED BY DENOM!)
-Vec3i getBarycentricDeltaY(const PixelTriangle& ps){
-  return {ps[0][0] - ps[2][0], ps[1][0] - ps[0][0], 0};
+Vec3i getBarycentricDeltaY(const PixelTriangle& t){
+  return {t[0].x - t[2].x, t[1].x - t[0].x, 0};
 }
 
 /*
@@ -113,35 +113,35 @@ bool isPointInTriangle(Vec3i uvd){
   // return (uvd[0] & uvd[1] & (uvd[2]-uvd[0]-uvd[1])) < 0;
     
   // the sign bit is 1 if negative
-  return ((int) uvd[0] | (int) uvd[1] |(int) (uvd[2]-uvd[0]-uvd[1])) >= 0;
+  return ((int) uvd.u | (int) uvd.v |(int) (uvd.d-uvd.u-uvd.v)) >= 0;
 }
 
-void Graphics::drawTriangle(const Triangle& ps){
+void Graphics::drawTriangle(const Triangle& t){
   // find bounding box
   Vec2i bboxmin = Point{width - 1, height - 1};
   Vec2i bboxmax = Point{0,0};
   for (int i = 0 ; i < 3 ; i ++){
-    bboxmin[0] = std::max(0, std::min(bboxmin[0], (int) ps[i][0]));
-    bboxmin[1] = std::max(0, std::min(bboxmin[1], (int) ps[i][1]));
-    bboxmax[0] = std::min(width-1, std::max(bboxmax[0], (int) ps[i][0]));
-    bboxmax[1] = std::min(height-1, std::max(bboxmax[1], (int) ps[i][1]));
+    bboxmin.x = std::max(0, std::min(bboxmin[0], (int) t[i].x));
+    bboxmin.y = std::max(0, std::min(bboxmin[1], (int) t[i].y));
+    bboxmax.x = std::min(width-1, std::max(bboxmax[0], (int) t[i].x));
+    bboxmax.y = std::min(height-1, std::max(bboxmax[1], (int) t[i].y));
   }
 
-  auto uvd = getBarycentricUVD(Point{bboxmin[0], bboxmin[1]}, ps);
-  auto dx = getBarycentricDeltaX(ps);
-  auto dy = getBarycentricDeltaY(ps);
+  auto uvd = getBarycentricUVD(Point{bboxmin.x, bboxmin.y}, t);
+  auto dx = getBarycentricDeltaX(t);
+  auto dy = getBarycentricDeltaY(t);
 
   // if the denom was negative, UVD got flipped, so need to reverse du/dx, etc
   // TODO refactor
-  if(getBarycentricDenom(ps) < 0){
+  if(getBarycentricDenom(t) < 0){
     dx = - dx;
     dy = - dy;
   }  
-  for (int x = bboxmin[0] ; x <= bboxmax[0] ; x++){
+  for (int x = bboxmin.x ; x <= bboxmax.x ; x++){
     auto uvd_start_column = uvd;
-    for(int y = bboxmin[1] ; y <= bboxmax[1] ; y++){
+    for(int y = bboxmin.y ; y <= bboxmax.y ; y++){
       if (isPointInTriangle(uvd)){
-	float z = ps[0][2] * (uvd[2]-uvd[0]-uvd[1]) + ps[1][2] * uvd[0] + ps[2][2] * uvd[1];
+	float z = t[0].z * (uvd.d-uvd.u-uvd.v) + t[1].z * uvd.u + t[2].z * uvd.v;
 	z /= uvd[2]; // denom
 	
 	if (z < zbuffer[x*height + y]){
@@ -155,28 +155,28 @@ void Graphics::drawTriangle(const Triangle& ps){
   }
 }
 
-void drawTriangleFilled(Triangle& ps, SDL_Renderer* renderer){
+void drawTriangleFilled(Triangle& t, SDL_Renderer* renderer){
   // from bottom point to top point
-  std::sort(&ps[0], &ps[0] + 3);
+  std::sort(&t[0], &t[0] + 3);
 
   // draw horizontal lines from left to right
 
   // so ideally instead of the slope/float code below I would do something
   // similar to the drawLine rasterization
  
-  float p02slope = ((float) (ps[2][1] - ps[0][1])) / (ps[2][0] - ps[0][0]);
-  float p01slope = ((float) (ps[1][1] - ps[0][1])) / (ps[1][0] - ps[0][0]);
-  float p12slope = ((float) (ps[2][1] - ps[1][1])) / (ps[2][0] - ps[1][0]);
-  int x_incr = ps[1][0] < ps[0][0] + (ps[1][1]-ps[0][1])/p02slope ? -1 : 1;
+  float p02slope = ((float) (t[2].y - t[0].y)) / (t[2].x - t[0].x);
+  float p01slope = ((float) (t[1].y - t[0].y)) / (t[1].x - t[0].x);
+  float p12slope = ((float) (t[2].y - t[1].y)) / (t[2].x - t[1].x);
+  int x_incr = t[1].x < t[0].x + (t[1].y-t[0].y)/p02slope ? -1 : 1;
   
-  for(int y = ps[0][1] ; y <= ps[2][1] ; y++){
+  for(int y = t[0].y ; y <= t[2].y ; y++){
     
-    int x_start = ps[0][0] + (y - ps[0][1])/p02slope;
+    int x_start = t[0].x + (y - t[0].y)/p02slope;
     int x_end;
-    if (y <= ps[1][1])
-      x_end = ps[0][0] + (y - ps[0][1])/p01slope;
+    if (y <= t[1].y)
+      x_end = t[0].x + (y - t[0].y)/p01slope;
     else
-      x_end = ps[1][0] + (y - ps[1][1])/p12slope;
+      x_end = t[1].x + (y - t[1].y)/p12slope;
     
     while(x_start != x_end){
       // height - 1 - y
@@ -224,8 +224,8 @@ void drawLine(Point p0, Point p1, SDL_Renderer* renderer){
   }
 }
 
-void drawTriangleBoundary(const Triangle& ps, SDL_Renderer* renderer){
-  drawLine({ps[0][0], ps[0][1]}, {ps[1][0], ps[1][1]}, renderer);
-  drawLine({ps[1][0], ps[1][1]}, {ps[2][0], ps[2][1]}, renderer);
-  drawLine({ps[2][0], ps[2][1]}, {ps[0][0], ps[0][1]}, renderer);
+void drawTriangleBoundary(const Triangle& t, SDL_Renderer* renderer){
+  drawLine({t[0].x, t[0].y}, {t[1].x, t[1].y}, renderer);
+  drawLine({t[1].x, t[1].y}, {t[2].x, t[2].y}, renderer);
+  drawLine({t[2].x, t[2].y}, {t[0].x, t[0].y}, renderer);
 }

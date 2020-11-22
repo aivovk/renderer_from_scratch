@@ -1,3 +1,11 @@
+/* A scene is a collection of models, loaded from a .scene file which specifies
+ * the filename, scale, rotation, and translation of each model.
+ *
+ * TODO:
+ * - rotation
+ *
+ */
+
 #ifndef SCENE_H
 #define SCENE_H
 #include <string>
@@ -55,7 +63,7 @@ public:
 	    num_lines++;
 	  }
 	f.close();
-      }
+      }    
   }
   const std::vector<Model>& getModels() const { return models; }
 
