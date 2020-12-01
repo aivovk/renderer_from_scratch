@@ -1,7 +1,6 @@
 #include <iostream>
 
 #include "graphics.h"
-#include "model.h"
 
 void printRenderDriverInfo(){
     SDL_RendererInfo info;
@@ -15,101 +14,107 @@ void printRenderDriverInfo(){
     std::cout<<info.max_texture_height<<std::endl;
 }
 
-int main(){
+int main(int argc, char** argv){
   SDL_Event event;
-  const int width = 800;
-  const int height = 600;
-  const int FPS = 24;
-  float frameTicks = 1000.0/FPS; // milliseconds
-  int lastTick, currentTick, delayTicks;
+
+  // graphics will get the actual width and height from the renderer
+  const int width_request = 800;
+  const int height_request = 600;
+  
+  const int maxFPS = 24;
+  const float maxFrameTicks = 1000.0/maxFPS; // milliseconds
+  int currentTick, delayTicks;
+  int lastTick = SDL_GetTicks();
   int frame = 0;
 
   SDL_Init(SDL_INIT_VIDEO);
   SDL_Window* window = SDL_CreateWindow("Window",
-					280,
-					75,
-					width,
-					height,
- 					SDL_WINDOW_SHOWN);
+					0, // window location
+					0,
+					width_request,
+					height_request,
+ 					SDL_WINDOW_SHOWN);// | SDL_WINDOW_FULLSCREEN_DESKTOP);
+  
   SDL_Renderer* renderer = SDL_CreateRenderer(window,
-					      -1,
-					      SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC) ;
+					      -1, // first renderer matching flags
+					      SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+  SDL_SetRelativeMouseMode(SDL_TRUE);
   //printRenderDriverInfo();
 
+  
   bool quit = false;
 
-  Scene s("s1.scene");
+  std::string filename;
+  if(argc > 1)
+    filename = argv[1];
+  else
+    filename = "s1.scene";
+  Scene s(filename);
   
-  Vec3f camera = {0, 1, -5};
+  Vec3f camera = {0,1,-5};
   Vec3f up = {0,1,0};
   Vec3f cameraDir = {0,0,1};
-
   Matrix4f camera_transform;
 
-  //Matrix4f viewport_and_projection = viewport(width, height) * projection();
   Graphics g(renderer, camera_transform);
   g.addScene(s);
  
-  float mouseSpeed = 0.005;
+  float cameraLookSpeed = 0.005f; // radians / (pixel * frame duration)???
+  float cameraMoveSpeed = 1.0f; // program distance units / frame duration?
   while(!quit){
-    //std::cout<<frame<<'\n';
-    lastTick = SDL_GetTicks();
     while(SDL_PollEvent(&event)){
       if(event.type == SDL_QUIT)
 	quit = true;
-      // TODO: EVENT CODE GOES HERE //
       if(event.type==SDL_MOUSEMOTION){
-	float xrel = event.motion.xrel * mouseSpeed;
-	/* rotation about y-axis
-	 * if camera moves right ... 
-	 *
-	 */
-	cameraDir[2] = cos(xrel)*cameraDir[2]-sin(xrel)*cameraDir[0];
-	cameraDir[0] = sin(xrel)*cameraDir[2]+cos(xrel)*cameraDir[0];
+	float xrel = event.motion.xrel * cameraLookSpeed;
+	float yrel = event.motion.yrel * cameraLookSpeed;
+
+	// left/right camera movement
+	cameraDir.rotate(Vec3f{0,1,0}, xrel);
+	up.rotate(Vec3f{0,1,0}, xrel);
+
+	// up/down camera movement
+	Vec3f cameraPerp = cross(up, cameraDir);
+	cameraDir.rotate(cameraPerp, yrel);
+	up.rotate(cameraPerp, yrel);
+
+	cameraDir.normalize();
+	up.normalize();
       }
       if(event.type == SDL_KEYDOWN){
 	switch (event.key.keysym.sym)
 	  {
 	  case SDLK_w:
-	    camera += cameraDir;
+	    camera += cameraDir * cameraMoveSpeed;
 	    break;
 	  case SDLK_a:
-	    camera -= cross(up,cameraDir);
+	    camera -= cross(up,cameraDir) * cameraMoveSpeed;
 	    break;
 	  case SDLK_s:
-	    camera -= cameraDir;
+	    camera -= cameraDir * cameraMoveSpeed;
 	    break;
 	  case SDLK_d:
-	    camera += cross(up,cameraDir);
+	    camera += cross(up,cameraDir) * cameraMoveSpeed;
 	    break;
 	  }
       }
-      //std::cout<<"Position: "<<camera<<std::endl;
-      //std::cout<<"Direction: "<<cameraDir<<std::endl;
     }
     // clear
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
     SDL_RenderClear(renderer);
     g.clearZBuffer();
 
-    /*** DRAW CODE GOES HERE ***/
-    //Matrix4f world_to_screen = viewport_and_projection * cameraLookAt(camera, cameraDir, up);
+    //draw
     camera_transform = cameraLookAt(camera, cameraDir, up);
-    
-    
-    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
     g.render();
-
-    // present
     SDL_RenderPresent(renderer);
+
+    // timing
     frame++;
-
     currentTick = SDL_GetTicks();
-    delayTicks = frameTicks - (currentTick - lastTick);
-    if (delayTicks < 0) delayTicks = 0;
+    delayTicks = std::max(0.0f, maxFrameTicks - (currentTick - lastTick));
     SDL_Delay(delayTicks);
-
-      
+    lastTick = SDL_GetTicks();
   }
 
   

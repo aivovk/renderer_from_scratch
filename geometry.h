@@ -21,8 +21,6 @@
 template <class T, std::size_t n> struct Vector;
 template<class T, std::size_t nrows, std::size_t mcols> class Matrix;
 
-#include "geometry.tpp"
-
 typedef Vector<int,2> Point;
 typedef Vector<float,4> Vec4f;
 typedef Vector<float,3> Vec3f;
@@ -35,6 +33,7 @@ typedef Matrix<float, 4, 4> Matrix4f;
 struct Triangle;
 struct PixelTriangle;
 
+#include "geometry.tpp"
 
 
 /**
@@ -87,10 +86,13 @@ struct Vector
   inline T magnitude() const { return sqrt((*this) * (*this)); }
   inline T magnitudeSquared() const {return (*this) * (*this); } // or this * this;
   inline Vector<T,n>& normalize() {
+    auto m = magnitude();
     for(std::size_t i = 0 ; i < n ; i++)
-      data[i] /= magnitude();
+      data[i] /= m;
     return *this;
   }
+
+  inline void rotate(const Vec3f& axis, float angle);
   
   bool operator<(const Vector<T,n>& other) const{
     if(this->data[1] != other.data[1])
@@ -98,7 +100,13 @@ struct Vector
     else
       return this->data[0] < other.data[0];
   }
-  
+
+  bool operator==(const Vector<T,n>& rhs) const{
+    bool equal = true;
+    for(std::size_t i = 0 ; i < n ; i++)
+      equal &= data[i]==rhs[i];
+    return equal;
+  }
 };
 
 // output
@@ -159,11 +167,12 @@ inline Vector<T,n> operator/(const Vector<T,n> & r, const T c) {
 }
 
 //cross product
-template <class T, std::size_t n>
-inline Vector<T,n> cross(const Vector<T,n> & r1, const Vector<T,n> & r2) {
-  Vector<T,n> result;
-  for(std::size_t i = 0 ; i < n ; i++) {
-    result.data[i] = r1.data[(i+1)%n] * r2.data[(i+2)%n] - r1.data[(i+2)%n] * r2.data[(i+1)%n];
+template <std::size_t d=3, class T, std::size_t n, std::size_t m>
+inline Vector<T,std::min(n,m)> cross(const Vector<T,n> & r1, const Vector<T,m> & r2) {
+  static_assert(d <= n && d <= m);
+  Vector<T,std::min(n,m)> result;
+  for(std::size_t i = 0 ; i < d ; i++) {
+    result.data[i] = r1.data[(i+1)%d] * r2.data[(i+2)%d] - r1.data[(i+2)%d] * r2.data[(i+1)%d];
   }
   return result;
 }
@@ -194,7 +203,7 @@ public:
 
 template<class T, std::size_t arows, std::size_t acols_brows, std::size_t bcols>
 Matrix<T, arows, bcols> operator*(const Matrix<T, arows, acols_brows>& A,
-					      const Matrix<T, acols_brows, bcols>& B) {
+				  const Matrix<T, acols_brows, bcols>& B) {
   Matrix<T, arows, bcols> m;
   for( std::size_t row = 0 ; row < arows ; row++)
     for( std::size_t col = 0 ; col < bcols ; col++) 
