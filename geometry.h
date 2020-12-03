@@ -4,10 +4,6 @@
  * Used for Points, Vertices, Transformations
  *
  * Triangle Classes
- *
- * TODO:
- * - one triangle template
- * - specialize the union for 2D vectors: x,y, instead of x,y,z..
  */
 
 #ifndef GEOMETRY_H
@@ -35,10 +31,6 @@ struct PixelTriangle;
 
 #include "geometry.tpp"
 
-
-/**
- * Template length vector
- */
 template <class T, std::size_t n>
 struct Vector
 {
@@ -48,13 +40,13 @@ struct Vector
     struct{T u,v,d;};
   };
   
-  //inline Vector<T,n>():data{} {}
+  //Vector<T,n>():data{} {}
   
   template <typename... Ts>
-  inline Vector<T,n>(Ts... data_list):data{data_list...} {}
+  Vector<T,n>(Ts... data_list):data{data_list...} {}
 
   template <typename U, std::size_t m>
-  inline Vector<T,n>(const Vector<U,m>& rhs):data{} {
+  Vector<T,n>(const Vector<U,m>& rhs):data{} {
     for(std::size_t i = 0 ; i < std::min(n, m) ; i++)
       data[i] = rhs.data[i];
   }
@@ -92,8 +84,10 @@ struct Vector
     return *this;
   }
 
+  // defined in quaternion.h
   inline void rotate(const Vec3f& axis, float angle);
-  
+
+  // compare y, then x
   bool operator<(const Vector<T,n>& other) const{
     if(this->data[1] != other.data[1])
       return this->data[1] < other.data[1];

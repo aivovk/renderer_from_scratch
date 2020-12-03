@@ -15,37 +15,38 @@ struct Quaternion{
   Quaternion(T w = 0, T i = 0, T j = 0, T k = 0):w(w), i(i), j(j), k(k) {}
   Quaternion(T w, Vector<T,3> v):w(w), v(v) {}
 
-  Quaternion conjugate(){
+  Quaternion conjugate() const{
     return Quaternion{w,-v};
   }
 
-  // note this is the normalization squared
-  T norm(){
+  // this is the normalization SQUARED
+  T norm() const{
     return w*w + v*v;
   }
 
   void normalize(){
-    w /= sqrt(norm());
-    v /= sqrt(norm());
+    auto n = sqrt(norm());
+    w /= n;
+    v /= n;
   }
 
-  Quaternion inverse(){
+  Quaternion inverse() const{
     return conjugate() / norm();
   }
 
-  T selection(){
+  T selection() const{
     return w;
   }
 
-  T dot(const Quaternion& rhs){
+  T dot(const Quaternion& rhs) const{
     return w*w.rhs + v*v.rhs;
   }
 
-  Quaternion product(const Quaternion& rhs){
+  Quaternion product(const Quaternion& rhs) const{
     return Quaternion{w*rhs.w-v*rhs.v,
       w*rhs.v + rhs.w * v + cross(v, rhs.v)};
   }
-  Quaternion operator*(const Quaternion& rhs){
+  Quaternion operator*(const Quaternion& rhs) const{
     return product(rhs);
   }
   
@@ -64,9 +65,6 @@ struct Quaternion{
 template <class T, std::size_t n>
 void Vector<T,n>::rotate(const Vec3f& axis, float angle){
   Quaternion<> q{cos(0.5 * angle), axis * static_cast<float>(sin(0.5 * angle))};
-
-  // TODO, this seems wasteful, replace everything with quaternions? what if w =
-  // 1 for points?
   auto rotated = q * Quaternion<>{0, Vec3f{x, y, z}} * q.conjugate();
   x = rotated.i;
   y = rotated.j;

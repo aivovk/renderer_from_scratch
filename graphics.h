@@ -27,20 +27,22 @@ Matrix4f projection();
  */
 Matrix4f viewport(int width, int height);
 
-
-int getBarycentricDenom(const PixelTriangle& t);
 /* Converts a point's x,y pixel coordinates to a triangle's barycentric
  * coordinate system (based on x,y only)
  *
  * Params:
  * p - the point
- * ps - a Triangle ( 3 points )
+ * t - a Triangle ( 3 points )
  *
  * Returns:
- * (U,V,D) where the real coordinates of the point are: (1-U/D-V/D) * A + U/D * B + V/D * C
+ * (U,V,D) where the real coordinates of the point are:
+ * (1-U/D-V/D) * A + U/D * B + V/D * C
  * where A,B,C are the x,y coordinates of the triangle's points
  */
 Vec3i getBarycentrivUVD(const Point& p, const PixelTriangle& t);
+// just the denominator (to test sign)
+int getBarycentricDenom(const PixelTriangle& t);
+// per pixel changes in U and V
 Vec3i getBarycentrivDeltaX(const PixelTriangle& t);
 Vec3i getBarycentrivDeltaY(const PixelTriangle& t);
 
@@ -93,9 +95,7 @@ public:
 
   void drawLine(Point p0, Point p1);
   void drawTriangle(const Triangle&, const Color vertexColors[3]);
-  void drawTriangleBoundary(const Triangle&);
-  void drawTriangleFilled(Triangle&);
-  
+  void drawTriangleBoundary(const Triangle&);  
 };
 
 

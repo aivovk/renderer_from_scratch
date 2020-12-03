@@ -1,8 +1,5 @@
-/* A scene is a collection of models, loaded from a .scene file which specifies
+/* A scene is a collection of models, intialized from a file which specifies :
  * the filename, scale, rotation, and translation of each model.
- *
- * TODO:
- * - rotation
  *
  */
 
@@ -29,11 +26,11 @@ public:
       # the rest of the lines must be in groups of 4 and the following order
       # filename
       model.xyz
-      # scale 
+      # scaling of each axis
       sx sy sz
       # rotation about each axis in radians
       rx ry rz
-      # translation
+      # translation along each axis
       tx ty tz
      */
 

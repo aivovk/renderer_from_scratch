@@ -30,9 +30,7 @@ Matrix4f cameraLookAt(Vec3f cameraPosition, // origin in old coordinates
 }
 
 Matrix4f projection() {
-  /*
-    not using this anymore, is it correct (or does it give negative coordinates?)
-  */
+  // not used anymore
   Matrix4f m = Matrix4f::identity();
   //m(2,2) = 0;
   m(3,3) = 0;
@@ -42,7 +40,7 @@ Matrix4f projection() {
 
 Matrix4f viewport(int width, int height) {
   /*
-    not using anymore but correct for 90degree viewing angle
+    not used anymore but correct for 90degree viewing angle
   */
   Matrix4f m = Matrix4f::identity();
   m(0,0) *= 0.5 * width;
@@ -56,12 +54,8 @@ Matrix4f viewport(int width, int height) {
   map a point to barycentric coordinates for a given triangle
   
   returns {u*denom, v*denom, denom} (to keep everything in terms of integers)
-  the uvd coordinates of the point are (1-u-v, u, v)???
+  the coordinates of the point are (1-u-v, u, v)
 */
-int getBarycentricDenom(const PixelTriangle& t){
-  return (t[1].x - t[0].x) * (t[2].y  - t[0].y )
-    - (t[2].x-t[0].x) * (t[1].y  - t[0].y );
-}
 Vec3i getBarycentricUVD(const Point& p, const PixelTriangle& t){
   // convert to barycentric coordinates
 
@@ -72,8 +66,7 @@ Vec3i getBarycentricUVD(const Point& p, const PixelTriangle& t){
   // (y - yA) * (xB - xA) - (yB - yA) * (x - xA)
   float v =  (p.y - t[0].y) * (t[1].x - t[0].x)
     - (t[1].y-t[0].y) * (p.x - t[0].x);
-  // when is denom small?
-  // (xB - XA) * (yC - yA) - (xC - xA) * (yB - yA)
+ 
   float denom = getBarycentricDenom(t);
 
   if (denom < 0){
@@ -87,6 +80,11 @@ Vec3i getBarycentricUVD(const Point& p, const PixelTriangle& t){
   // u = v = 0 corrsponds to vertex A
   // u = 1, v = 0 is vertex B
   // u = 0, v = 1 is vertex C
+}
+int getBarycentricDenom(const PixelTriangle& t){
+   // (xB - XA) * (yC - yA) - (xC - xA) * (yB - yA)
+  return (t[1].x - t[0].x) * (t[2].y  - t[0].y )
+    - (t[2].x-t[0].x) * (t[1].y  - t[0].y );
 }
 
 // returns (dU/dx, dV/dx, 0) to update uvd per pixel (NOT DIVIDED BY DENOM!)
@@ -109,9 +107,6 @@ Vec3i getBarycentricDeltaY(const PixelTriangle& t){
   
 */
 bool isPointInTriangle(Vec3i uvd){
-  //if(uvd[2] < 0)
-  // return (uvd[0] & uvd[1] & (uvd[2]-uvd[0]-uvd[1])) < 0;
-    
   // the sign bit is 1 if negative
   return ((int) uvd.u | (int) uvd.v |(int) (uvd.d-uvd.u-uvd.v)) >= 0;
 }
@@ -121,7 +116,7 @@ void Graphics::clearZBuffer(){
 }
 
 void Graphics::convertToScreen(Vec4f& v) const {
-    // when x/z = tan(view_angle / 2)
+    // screen border when  when x/z = tan(view_angle / 2)
     v[0] = width/2 - 1 + width/2 * v[0] * VIEWING_FACTOR /v[2];
     v[1] = height/2 - 1 + width/2 * v[1] * VIEWING_FACTOR /v[2];
 }
@@ -145,13 +140,11 @@ void Graphics::drawTriangle(const Triangle& t, const Color vertexColors[3]){
   auto uvd = getBarycentricUVD(Point{bboxmin.x, bboxmin.y}, t);
   auto dx = getBarycentricDeltaX(t);
   auto dy = getBarycentricDeltaY(t);
-
-  // if the denom was negative, UVD got flipped, so need to reverse du/dx, etc
-  // TODO refactor
   if(getBarycentricDenom(t) < 0){
     dx = - dx;
     dy = - dy;
-  }  
+  }
+  
   for (int x = bboxmin.x ; x <= bboxmax.x ; x++){
     auto uvd_start_column = uvd;
     for(int y = bboxmin.y ; y <= bboxmax.y ; y++){
@@ -175,42 +168,10 @@ void Graphics::drawTriangle(const Triangle& t, const Color vertexColors[3]){
   }
 }
 
-void Graphics::drawTriangleFilled(Triangle& t){
-  // from bottom point to top point
-  std::sort(&t[0], &t[0] + 3);
-
-  // draw horizontal lines from left to right
-
-  // so ideally instead of the slope/float code below I would do something
-  // similar to the drawLine rasterization
- 
-  float p02slope = ((float) (t[2].y - t[0].y)) / (t[2].x - t[0].x);
-  float p01slope = ((float) (t[1].y - t[0].y)) / (t[1].x - t[0].x);
-  float p12slope = ((float) (t[2].y - t[1].y)) / (t[2].x - t[1].x);
-  int x_incr = t[1].x < t[0].x + (t[1].y-t[0].y)/p02slope ? -1 : 1;
-  
-  for(int y = t[0].y ; y <= t[2].y ; y++){
-    
-    int x_start = t[0].x + (y - t[0].y)/p02slope;
-    int x_end;
-    if (y <= t[1].y)
-      x_end = t[0].x + (y - t[0].y)/p01slope;
-    else
-      x_end = t[1].x + (y - t[1].y)/p12slope;
-    
-    while(x_start != x_end){
-      // height - 1 - y
-      SDL_RenderDrawPoint(renderer, x_start, height - 1 - y);
-      x_start += x_incr;
-    }
-  }
-}
-
-
 void Graphics::drawLine(Point p0, Point p1){
   bool steep = false;
   
-  // find steeper side and transpose drawing
+  // find steeper side and transpose the line
   // increment along less steep side to avoid gaps
   if (std::abs(p1[1]-p0[1]) > std::abs(p1[0]-p0[0])){
     steep = true;
@@ -229,7 +190,6 @@ void Graphics::drawLine(Point p0, Point p1){
   int error2 = 0;
   int yincr = p1[1] > p0[1] ? 1 : -1; //pos/neg slope
 
-  // height - 1 - y
   for(Point p(p0) ; p[0] <= p1[0] ; p[0]++){
     if(steep) // modern compilers can optimize this out of the loop
       SDL_RenderDrawPoint(renderer, p[1], height - 1 - p[0]);
@@ -261,25 +221,12 @@ void Graphics::addScene(const Scene& s){
 
 void Graphics::render(){
   /*
-    TODO refactor, part of this is triangle plane intersections, part is lighting
-
-
-    do the following steps:
-
+    Steps: 
     - transform from World to Camera coordinates
-    - where do i want to store these? graphics should keep a list of the models it wants to draw an array for the triangles and their visibility
-
-    - clip the triangles : mark the triangles that intersect the z axis as invisible (or the view volume)
-    - recalculate new vertices and triangles matching those
-
-    - do i even need the arrays?
-
-    - just do it all in one step:
-    transform the triangle
-    check if it's visible 
-    do necessary calculations to recompute vertices
-    draw it
-      
+    - clip/cull the triangles based on the near view plane (and find new 
+      triangles if there are intersections)
+    - cull triangles facing away from the camera
+    - vertex lighting      
 
   */
   for (size_t i_model = 0 ; i_model < models.size() ; i_model++){
@@ -287,8 +234,7 @@ void Graphics::render(){
       Triangle t = models[i_model].get().getTriangle(i_triangle);
 
       /*
-	currently light from a single direction, seems inverted, so check the math
-
+	unidirectional light
       */
       auto n = cross(Vec3f{t[1] - t[0]},
 		     Vec3f{t[2] - t[1]}).normalize();
@@ -304,19 +250,11 @@ void Graphics::render(){
 	}
       }	
       if (num_visible_vertices > 0){
-	// recalculate the normal (seems faster than transforming?)
+	// recalculate the face normal
 	auto n = cross(Vec3f{screen_triangle[1] - screen_triangle[0]},
-		       Vec3f{screen_triangle[2] - screen_triangle[1]}).normalize();
-	  	  	  
-	// camera and normal point in the same direction if face is invisible
-	/* 
-	   this is, I think too much, all visible faces that should be drawn
-	   are drawn, as well as some that shouldn't be (i think based on how
-	   far it is from the viewing box edges)
-
-	   do i have to actually transform the normals to the projected
-	   coordinates?
-	*/
+		       Vec3f{screen_triangle[2] - screen_triangle[1]});
+	n.normalize();
+	// facing away from camera
 	if(acos(n.z) < 0.5 * HORIZONTAL_VIEWING_ANGLE_RAD){
 	  continue;
 	}
@@ -339,7 +277,7 @@ void Graphics::render(){
 	    - - +
 	    + - -
 	    - + -
-	    3 cases , we find the first positive index, then calculate the intersections between the line segments between it and the other two points and and the near_clip_dist plane
+	    we find the first positive index, then calculate the intersections between the line segments between it and the other two points and and the near_clip_dist plane
 	  */
 	  //std::cout<<"1 visible\n";
 	    
@@ -382,6 +320,7 @@ void Graphics::render(){
 	    + + -
 	    - + +
 	    + - +
+	    intersection with plane makes a quad, which we split into two triangles
 	  */
 	  //std::cout<<"2 visible\n";
 	  // find invisible vertex
